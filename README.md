@@ -280,6 +280,55 @@ result = md.convert("example.jpg")
 print(result.text_content)
 ```
 
+### Markdown Post-Processing (fork enhancement)
+
+This fork adds an automatic, fully-offline post-processing pass that runs at the
+end of every conversion to clean up the generated Markdown. It lives in
+`markitdown.postprocessor` and is applied inside `MarkItDown._convert()`.
+
+The pipeline runs in this order:
+
+```
+raw output
+   → fix_markdown_tables()   # normalize tables
+   → fix_broken_markdown()   # repair syntax (also calls fix_markdown_tables)
+   → strip_boilerplate()     # only when strip_boilerplate=True
+   → final markdown
+```
+
+**`fix_broken_markdown(text)`** (always on) repairs common syntax issues:
+
+- Closes unclosed `**bold**` / `_italic_` spans (underscores inside
+  `snake_case` words are left alone).
+- Adds the missing space in headings (`##Title` → `## Title`).
+- Closes broken links (`[text](url` → `[text](url)`).
+- Collapses 3+ consecutive blank lines down to 2.
+- Strips trailing whitespace from every line.
+
+**`fix_markdown_tables(text)`** (always on, run as part of the above) repairs
+tables: pads short rows to a consistent column count, guarantees a separator
+row (`| --- | --- |`) after the header, removes duplicate header rows, trims
+in-cell whitespace, and fills merged interior cells with a `[merged]`
+placeholder.
+
+**`strip_boilerplate(text)`** is **opt-in** (defaults to `False`, so behavior is
+non-breaking) and removes low-value noise: page-number lines (`1`, `Page 2`,
+`- 3 -`, `Page 2 of 10`), headers/footers repeated 3+ times, common legal
+boilerplate ("All rights reserved", "Confidential"), and punctuation-only lines
+(table separators are preserved).
+
+Enable boilerplate stripping via the constructor flag:
+
+```python
+from markitdown import MarkItDown
+
+md = MarkItDown(strip_boilerplate=True)
+result = md.convert("report.pdf")
+print(result.text_content)
+```
+
+All post-processing is performed locally with no external/API calls.
+
 ### Docker
 
 ```sh

@@ -18,6 +18,7 @@ import codecs
 
 from ._stream_info import StreamInfo
 from ._uri_utils import parse_data_uri, file_uri_to_path
+from .postprocessor import fix_broken_markdown, strip_boilerplate
 
 from .converters import (
     PlainTextConverter,
@@ -104,6 +105,10 @@ class MarkItDown:
     ):
         self._builtins_enabled = False
         self._plugins_enabled = False
+
+        # Opt-in post-processing: strip repetitive, low-value boilerplate from
+        # the converted Markdown. Defaults to False to remain non-breaking.
+        self._strip_boilerplate = bool(kwargs.get("strip_boilerplate", False))
 
         requests_session = kwargs.get("requests_session")
         if requests_session is None:
@@ -642,6 +647,19 @@ class MarkItDown:
                         [line.rstrip() for line in re.split(r"\r?\n", res.text_content)]
                     )
                     res.text_content = re.sub(r"\n{3,}", "\n\n", res.text_content)
+
+                    # Post-processing pipeline (runs offline):
+                    #   fix_markdown_tables() -> fix_broken_markdown()
+                    #     -> strip_boilerplate() (only if opted in)
+                    # fix_broken_markdown() invokes fix_markdown_tables() internally.
+                    res.text_content = fix_broken_markdown(res.text_content)
+                    if self._strip_boilerplate:
+                        res.text_content = strip_boilerplate(res.text_content)
+                        # Re-collapse any blank-line runs left by removals.
+                        res.text_content = re.sub(
+                            r"\n{3,}", "\n\n", res.text_content
+                        )
+
                     return res
 
         # If we got this far without success, report any exceptions
