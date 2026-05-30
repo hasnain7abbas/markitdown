@@ -43,7 +43,7 @@ hiddenimports = list(set(
 ))
 
 a = Analysis(
-    ["..\\packages\\markitdown\\src\\markitdown\\__main__.py"],
+    ["runner.py"],
     pathex=["..\\packages\\markitdown\\src"],
     binaries=magika_binaries,
     datas=magika_datas,
