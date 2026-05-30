@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>markitdown</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>markitdown<span class="accent">-postproc</span></h1>
+      <p class="sub">Drop a file. Get clean Markdown.</p>
+    </header>
+
+    <section id="drop" class="drop">
+      <p class="drop-text">
+        Drag &amp; drop a file here, or
+        <button id="pick" type="button">browse</button>
+      </p>
+      <p class="hint">PDF, DOCX, XLSX, PPTX, HTML, images, audio, plain text...</p>
+    </section>
+
+    <section class="options">
+      <label>
+        <input type="checkbox" id="strip" />
+        Strip boilerplate (page numbers, repeated headers, legal noise)
+      </label>
+    </section>
+
+    <section id="status" class="status" hidden></section>
+
+    <section id="result" class="result" hidden>
+      <div class="result-head">
+        <h2>Result</h2>
+        <div class="actions">
+          <button id="copy" type="button">Copy</button>
+          <button id="save" type="button">Save as .md</button>
+        </div>
+      </div>
+      <pre><code id="output"></code></pre>
+    </section>
+  </main>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

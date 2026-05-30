@@ -374,6 +374,26 @@ cd packaging && pyinstaller --clean --noconfirm markitdown.spec
 ./dist/markitdown.exe --help
 ```
 
+### Desktop GUI (Tauri)
+
+A native desktop wrapper lives in [`app/`](app/) — a small Tauri 2 app that
+drag-and-drops a file, optionally toggles `strip_boilerplate`, and shells out
+to the `markitdown` CLI. The Python CLI now also accepts `--strip-boilerplate`
+(or `MARKITDOWN_STRIP_BOILERPLATE=1`).
+
+CI workflow `.github/workflows/build-desktop.yml` builds installers on every
+push to `main` for Windows (`.msi` + NSIS `.exe`), macOS (`.dmg` + `.app`,
+universal binary), and Linux (`.deb` + `.AppImage`). Tag pushes (`v*`)
+produce a draft GitHub Release with all installers attached.
+
+Local build:
+
+```sh
+cd app
+npm install
+npm run tauri build
+```
+
 ## Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a

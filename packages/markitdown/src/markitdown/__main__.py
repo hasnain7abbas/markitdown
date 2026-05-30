@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 import argparse
+import os
 import sys
 import codecs
 from typing import Any, Dict
@@ -138,6 +139,16 @@ def main():
         help="Keep data URIs (like base64-encoded images) in the output. By default, data URIs are truncated.",
     )
 
+    parser.add_argument(
+        "--strip-boilerplate",
+        action="store_true",
+        default=os.environ.get("MARKITDOWN_STRIP_BOILERPLATE", "").lower()
+        in ("1", "true", "yes"),
+        help="Remove page numbers, repeated headers/footers, legal boilerplate, "
+        "and punctuation-only lines from the output. Also enabled by setting "
+        "MARKITDOWN_STRIP_BOILERPLATE=1.",
+    )
+
     parser.add_argument("filename", nargs="?")
     args = parser.parse_args()
 
@@ -209,7 +220,9 @@ def main():
             _exit_with_error("Filename is required when using Document Intelligence.")
 
         markitdown = MarkItDown(
-            enable_plugins=args.use_plugins, docintel_endpoint=args.endpoint
+            enable_plugins=args.use_plugins,
+            docintel_endpoint=args.endpoint,
+            strip_boilerplate=args.strip_boilerplate,
         )
     elif args.use_cu:
         if args.cu_endpoint is None:
@@ -240,9 +253,16 @@ def main():
                     _exit_with_error(f"Unknown file type: {name}")
             cu_kwargs["cu_file_types"] = cu_types
 
-        markitdown = MarkItDown(enable_plugins=args.use_plugins, **cu_kwargs)
+        markitdown = MarkItDown(
+            enable_plugins=args.use_plugins,
+            strip_boilerplate=args.strip_boilerplate,
+            **cu_kwargs,
+        )
     else:
-        markitdown = MarkItDown(enable_plugins=args.use_plugins)
+        markitdown = MarkItDown(
+            enable_plugins=args.use_plugins,
+            strip_boilerplate=args.strip_boilerplate,
+        )
 
     if args.filename is None:
         result = markitdown.convert_stream(
