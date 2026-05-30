@@ -1,467 +1,302 @@
-# MarkItDown
-
-[![PyPI](https://img.shields.io/pypi/v/markitdown.svg)](https://pypi.org/project/markitdown/)
-![PyPI - Downloads](https://img.shields.io/pypi/dd/markitdown)
-[![Built by AutoGen Team](https://img.shields.io/badge/Built%20by-AutoGen%20Team-blue)](https://github.com/microsoft/autogen)
-
-> [!IMPORTANT]
-> MarkItDown performs I/O with the privileges of the current process. Like open() or requests.get(), it will access resources that the process itself can access. Sanitize your inputs in untrusted environments, and call the narrowest `convert_*` function needed for your use case (e.g., `convert_stream()`, or `convert_local()`). See the [Security Considerations](#security-considerations) section of the documentation for more information.
-
-MarkItDown is a lightweight Python utility for converting various files to Markdown for use with LLMs and related text analysis pipelines. To this end, it is most comparable to [textract](https://github.com/deanmalmgren/textract), but with a focus on preserving important document structure and content as Markdown (including: headings, lists, tables, links, etc.) While the output is often reasonably presentable and human-friendly, it is meant to be consumed by text analysis tools -- and may not be the best option for high-fidelity document conversions for human consumption.
-
-MarkItDown currently supports the conversion from:
-
-- PDF
-- PowerPoint
-- Word
-- Excel
-- Images (EXIF metadata and OCR)
-- Audio (EXIF metadata and speech transcription)
-- HTML
-- Text-based formats (CSV, JSON, XML)
-- ZIP files (iterates over contents)
-- Youtube URLs
-- EPubs
-- ... and more!
-
-## Why Markdown?
-
-Markdown is extremely close to plain text, with minimal markup or formatting, but still
-provides a way to represent important document structure. Mainstream LLMs, such as
-OpenAI's GPT-4o, natively "_speak_" Markdown, and often incorporate Markdown into their
-responses unprompted. This suggests that they have been trained on vast amounts of
-Markdown-formatted text, and understand it well. As a side benefit, Markdown conventions
-are also highly token-efficient.
-
-## Prerequisites
-MarkItDown requires Python 3.10 or higher. It is recommended to use a virtual environment to avoid dependency conflicts.
-
-With the standard Python installation, you can create and activate a virtual environment using the following commands:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-If using `uv`, you can create a virtual environment with:
-
-```bash
-uv venv --python=3.12 .venv
-source .venv/bin/activate
-# NOTE: Be sure to use 'uv pip install' rather than just 'pip install' to install packages in this virtual environment
-```
-
-If you are using Anaconda, you can create a virtual environment with:
-
-```bash
-conda create -n markitdown python=3.12
-conda activate markitdown
-```
-
-## Installation
-
-To install MarkItDown, use pip: `pip install 'markitdown[all]'`. Alternatively, you can install it from the source:
-
-```bash
-git clone git@github.com:microsoft/markitdown.git
-cd markitdown
-pip install -e 'packages/markitdown[all]'
-```
-
-## Usage
-
-### Command-Line
-
-```bash
-markitdown path-to-file.pdf > document.md
-```
-
-Or use `-o` to specify the output file:
-
-```bash
-markitdown path-to-file.pdf -o document.md
-```
-
-You can also pipe content:
-
-```bash
-cat path-to-file.pdf | markitdown
-```
-
-### Optional Dependencies
-MarkItDown has optional dependencies for activating various file formats. Earlier in this document, we installed all optional dependencies with the `[all]` option. However, you can also install them individually for more control. For example:
-
-```bash
-pip install 'markitdown[pdf, docx, pptx]'
-```
-
-will install only the dependencies for PDF, DOCX, and PPTX files.
-
-At the moment, the following optional dependencies are available:
-
-* `[all]` Installs all optional dependencies
-* `[pptx]` Installs dependencies for PowerPoint files
-* `[docx]` Installs dependencies for Word files
-* `[xlsx]` Installs dependencies for Excel files
-* `[xls]` Installs dependencies for older Excel files
-* `[pdf]` Installs dependencies for PDF files
-* `[outlook]` Installs dependencies for Outlook messages
-* `[az-doc-intel]` Installs dependencies for Azure Document Intelligence
-* `[az-content-understanding]` Installs dependencies for Azure Content Understanding
-* `[audio-transcription]` Installs dependencies for audio transcription of wav and mp3 files
-* `[youtube-transcription]` Installs dependencies for fetching YouTube video transcription
-
-### Plugins
-
-MarkItDown also supports 3rd-party plugins. Plugins are disabled by default. To list installed plugins:
-
-```bash
-markitdown --list-plugins
-```
-
-To enable plugins use:
-
-```bash
-markitdown --use-plugins path-to-file.pdf
-```
-
-To find available plugins, search GitHub for the hashtag `#markitdown-plugin`. To develop a plugin, see `packages/markitdown-sample-plugin`.
-
-#### markitdown-ocr Plugin
-
-The `markitdown-ocr` plugin adds OCR support to PDF, DOCX, PPTX, and XLSX converters, extracting text from embedded images using LLM Vision — the same `llm_client` / `llm_model` pattern that MarkItDown already uses for image descriptions. No new ML libraries or binary dependencies required.
-
-**Installation:**
-
-```bash
-pip install markitdown-ocr
-pip install openai  # or any OpenAI-compatible client
-```
-
-**Usage:**
-
-Pass the same `llm_client` and `llm_model` you would use for image descriptions:
-
-```python
-from markitdown import MarkItDown
-from openai import OpenAI
-
-md = MarkItDown(
-    enable_plugins=True,
-    llm_client=OpenAI(),
-    llm_model="gpt-4o",
-)
-result = md.convert("document_with_images.pdf")
-print(result.text_content)
-```
-
-If no `llm_client` is provided the plugin still loads, but OCR is silently skipped and the standard built-in converter is used instead.
-
-See [`packages/markitdown-ocr/README.md`](packages/markitdown-ocr/README.md) for detailed documentation.
-
-### Azure Content Understanding
-
-[Azure Content Understanding](https://learn.microsoft.com/azure/ai-services/content-understanding/) provides higher-quality conversion with structured field extraction (YAML front matter), multi-modal support (documents, images, audio, video), and configurable analyzers.
-
-Install: `pip install 'markitdown[az-content-understanding]'`
-
-#### When to use Content Understanding
-
-Content Understanding is ideal when you need capabilities beyond what built-in or Document Intelligence converters provide:
-
-- **Audio and video files** — CU is the only option for video, and the higher-quality cloud option for audio. Built-in converters have no video support and only basic audio transcription.
-- **Structured field extraction** — [Prebuilt](https://learn.microsoft.com/azure/ai-services/content-understanding/concepts/prebuilt-analyzers) or [custom-built](https://learn.microsoft.com/azure/ai-services/content-understanding/how-to/customize-analyzer-content-understanding-studio?tabs=portal) analyzers extract domain-specific fields (invoice amounts, receipt dates, contract clauses) serialized as YAML front matter. Neither built-in nor Doc Intel integration exposes fields.
-- **Higher-quality document extraction** — Cloud-based layout analysis and OCR for scanned PDFs, complex tables, and multi-page documents.
-- **Single API for all modalities** — One `cu_endpoint` handles documents, images, audio, and video with automatic analyzer routing.
-
-| Capability | Built-in converters | Azure Document Intelligence | Azure Content Understanding |
-|------------|---------------------|-----------------------------|-----------------------------|
-| Document conversion | Offline, format-specific extraction | Cloud layout extraction | Cloud multimodal extraction |
-| Structured fields | Not available | Not exposed by this integration | YAML front matter from analyzer fields |
-| Custom analyzers | Not available | Not configurable in this integration | Supported with `cu_analyzer_id` |
-| Audio and video | Basic audio, no video | Not supported | Audio and video analyzers |
-| Cost | Local compute only | Billable Azure API calls | Billable Azure API calls |
-
-**CLI:**
-
-```bash
-markitdown path-to-file.pdf --use-cu --cu-endpoint "<content_understanding_endpoint>"
-```
-
-**Python API:**
-
-```python
-from markitdown import MarkItDown
-
-# Zero-config — auto-selects analyzer per file type
-md = MarkItDown(cu_endpoint="<content_understanding_endpoint>")
-result = md.convert("report.pdf")   # documents → prebuilt-documentSearch
-result = md.convert("meeting.mp4")  # video → prebuilt-videoSearch
-result = md.convert("call.wav")     # audio → prebuilt-audioSearch
-print(result.markdown)
-```
-
-**With a custom analyzer** (for domain-specific field extraction):
-
-```python
-md = MarkItDown(
-    cu_endpoint="<content_understanding_endpoint>",
-    cu_analyzer_id="my-invoice-analyzer",
-)
-result = md.convert("invoice.pdf")
-print(result.markdown)
-# Output includes YAML front matter with extracted fields:
-# ---
-# contentType: document
-# fields:
-#   VendorName: CONTOSO LTD.
-#   InvoiceDate: '2019-11-15'
-# ---
-# <!-- page 1 -->
-# ...
-```
-
-When `cu_analyzer_id` is set, the converter automatically scopes it to compatible file types based on the analyzer's modality. Incompatible types (e.g., audio files with a document analyzer) auto-route to default prebuilt analyzers.
-
-**Cost note:** Each `convert()` call for a CU-routed format is a billable Azure API call. Use `cu_file_types` to restrict which formats route to CU:
-
-```python
-from markitdown.converters import ContentUnderstandingFileType
-
-md = MarkItDown(
-    cu_endpoint="<content_understanding_endpoint>",
-    cu_file_types=[ContentUnderstandingFileType.PDF],  # only PDFs use CU
-)
-```
-
-More information about Azure Content Understanding can be found [here](https://learn.microsoft.com/azure/ai-services/content-understanding/).
-
-### Azure Document Intelligence
-
-To use Microsoft Document Intelligence for conversion:
-
-```bash
-markitdown path-to-file.pdf -o document.md -d -e "<document_intelligence_endpoint>"
-```
-
-More information about how to set up an Azure Document Intelligence Resource can be found [here](https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/how-to-guides/create-document-intelligence-resource?view=doc-intel-4.0.0)
-
-### Python API
-
-Basic usage in Python:
-
-```python
-from markitdown import MarkItDown
-
-md = MarkItDown(enable_plugins=False) # Set to True to enable plugins
-result = md.convert("test.xlsx")
-print(result.text_content)
-```
-
-Document Intelligence conversion in Python:
-
-```python
-from markitdown import MarkItDown
-
-md = MarkItDown(docintel_endpoint="<document_intelligence_endpoint>")
-result = md.convert("test.pdf")
-print(result.text_content)
-```
-
-To use Large Language Models for image descriptions (currently only for pptx and image files), provide `llm_client` and `llm_model`:
-
-```python
-from markitdown import MarkItDown
-from openai import OpenAI
-
-client = OpenAI()
-md = MarkItDown(llm_client=client, llm_model="gpt-4o", llm_prompt="optional custom prompt")
-result = md.convert("example.jpg")
-print(result.text_content)
-```
-
-### Markdown Post-Processing (fork enhancement)
-
-This fork adds an automatic, fully-offline post-processing pass that runs at the
-end of every conversion to clean up the generated Markdown. It lives in
-`markitdown.postprocessor` and is applied inside `MarkItDown._convert()`.
-
-The pipeline runs in this order:
-
-```
-raw output
-   → fix_markdown_tables()   # normalize tables
-   → fix_broken_markdown()   # repair syntax (also calls fix_markdown_tables)
-   → strip_boilerplate()     # only when strip_boilerplate=True
-   → final markdown
-```
-
-**`fix_broken_markdown(text)`** (always on) repairs common syntax issues:
-
-- Closes unclosed `**bold**` / `_italic_` spans (underscores inside
-  `snake_case` words are left alone).
-- Adds the missing space in headings (`##Title` → `## Title`).
-- Closes broken links (`[text](url` → `[text](url)`).
-- Collapses 3+ consecutive blank lines down to 2.
-- Strips trailing whitespace from every line.
-
-**`fix_markdown_tables(text)`** (always on, run as part of the above) repairs
-tables: pads short rows to a consistent column count, guarantees a separator
-row (`| --- | --- |`) after the header, removes duplicate header rows, trims
-in-cell whitespace, and fills merged interior cells with a `[merged]`
-placeholder.
-
-**`strip_boilerplate(text)`** is **opt-in** (defaults to `False`, so behavior is
-non-breaking) and removes low-value noise: page-number lines (`1`, `Page 2`,
-`- 3 -`, `Page 2 of 10`), headers/footers repeated 3+ times, common legal
-boilerplate ("All rights reserved", "Confidential"), and punctuation-only lines
-(table separators are preserved).
-
-Enable boilerplate stripping via the constructor flag:
-
-```python
-from markitdown import MarkItDown
-
-md = MarkItDown(strip_boilerplate=True)
-result = md.convert("report.pdf")
-print(result.text_content)
-```
-
-All post-processing is performed locally with no external/API calls.
-
-### Docker
-
-```sh
-docker build -t markitdown:latest .
-docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
-```
-
-### Releasing to PyPI (fork)
-
-This fork is published as **`markitdown-postproc`** on PyPI (the upstream `markitdown` name is owned by Microsoft). The import name is unchanged:
-
-```sh
-pip install markitdown-postproc
-```
-```python
-from markitdown import MarkItDown
-```
-
-Publishing is automated via `.github/workflows/publish-pypi.yml`. Push a version tag and the workflow builds an sdist + wheel and uploads via PyPI Trusted Publishing:
-
-```sh
-git tag v0.1.6-postproc.1
-git push origin v0.1.6-postproc.1
-```
-
-One-time setup on PyPI: register a trusted publisher at https://pypi.org/manage/account/publishing/ pointing at `hasnain7abbas/markitdown`, workflow `publish-pypi.yml`, environment `pypi`. No long-lived API token is stored in the repo.
-
-### Standalone Windows executable
-
-For users who don't want to install Python, every push to `main` builds a single-file `markitdown.exe` via PyInstaller (`packaging/markitdown.spec`). The workflow lives at `.github/workflows/build-exe.yml` and:
-
-- runs on `windows-latest` with Python 3.12,
-- installs `markitdown[all]` so the bundled binary handles PDF / DOCX / XLSX / PPTX / audio / YouTube,
-- uploads `markitdown.exe` as a build artifact, and
-- on a `v*` tag, attaches the binary to the GitHub Release.
-
-To build locally:
-
-```sh
-pip install -e "packages/markitdown[all]"
-pip install pyinstaller
-cd packaging && pyinstaller --clean --noconfirm markitdown.spec
-./dist/markitdown.exe --help
-```
-
-### Desktop GUI (Tauri)
-
-A native desktop wrapper lives in [`app/`](app/) — a small Tauri 2 app that
-drag-and-drops a file, optionally toggles `strip_boilerplate`, and shells out
-to the `markitdown` CLI. The Python CLI now also accepts `--strip-boilerplate`
-(or `MARKITDOWN_STRIP_BOILERPLATE=1`).
-
-CI workflow `.github/workflows/build-desktop.yml` builds installers on every
-push to `main` for Windows (`.msi` + NSIS `.exe`), macOS (`.dmg` + `.app`,
-universal binary), and Linux (`.deb` + `.AppImage`). Tag pushes (`v*`)
-produce a draft GitHub Release with all installers attached.
-
-Local build:
-
-```sh
-cd app
-npm install
-npm run tauri build
-```
-
-## Contributing
-
-This project welcomes contributions and suggestions. Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
-
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
-### How to Contribute
-
-You can help by looking at issues or helping review PRs. Any issue or PR is welcome, but we have also marked some as 'open for contribution' and 'open for reviewing' to help facilitate community contributions. These are of course just suggestions and you are welcome to contribute in any way you like.
-
 <div align="center">
 
-|            | All                                                          | Especially Needs Help from Community                                                                                                      |
-| ---------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Issues** | [All Issues](https://github.com/microsoft/markitdown/issues) | [Issues open for contribution](https://github.com/microsoft/markitdown/issues?q=is%3Aissue+is%3Aopen+label%3A%22open+for+contribution%22) |
-| **PRs**    | [All PRs](https://github.com/microsoft/markitdown/pulls)     | [PRs open for reviewing](https://github.com/microsoft/markitdown/pulls?q=is%3Apr+is%3Aopen+label%3A%22open+for+reviewing%22)              |
+<img src="app/src-tauri/icons/icon.png" width="120" height="120" alt="markitdown-postproc logo" />
+
+<h1 align="center">markitdown-postproc</h1>
+
+**Drop a file. Get clean Markdown.**
+
+A fork of [microsoft/markitdown](https://github.com/microsoft/markitdown) that ships an offline post-processing pipeline — syntax repair, table normalization, and opt-in boilerplate stripping — plus a Python library, CLI, a standalone Windows `.exe`, and a native desktop app for Windows / macOS / Linux.
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-ff7a59.svg?style=flat-square)](LICENSE)
+[![PyPI](https://img.shields.io/badge/pypi-markitdown--postproc-7ee787.svg?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/markitdown-postproc/)
+[![Build desktop](https://img.shields.io/github/actions/workflow/status/hasnain7abbas/markitdown/build-desktop.yml?style=flat-square&label=desktop&logo=tauri)](https://github.com/hasnain7abbas/markitdown/actions/workflows/build-desktop.yml)
+[![Build .exe](https://img.shields.io/github/actions/workflow/status/hasnain7abbas/markitdown/build-exe.yml?style=flat-square&label=.exe&logo=windows)](https://github.com/hasnain7abbas/markitdown/actions/workflows/build-exe.yml)
+[![Pages](https://img.shields.io/github/actions/workflow/status/hasnain7abbas/markitdown/pages.yml?style=flat-square&label=pages&logo=githubpages)](https://hasnain7abbas.github.io/markitdown/)
+[![Stars](https://img.shields.io/github/stars/hasnain7abbas/markitdown?style=flat-square&logo=github&color=ffd166)](https://github.com/hasnain7abbas/markitdown/stargazers)
+
+<p>
+  <a href="https://hasnain7abbas.github.io/markitdown/"><b>🌐 Website</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/hasnain7abbas/markitdown/releases/latest"><b>⬇️ Download</b></a> &nbsp;·&nbsp;
+  <a href="https://pypi.org/project/markitdown-postproc/"><b>🐍 pip install</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/hasnain7abbas/markitdown/issues/new"><b>🐞 Report Bug</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/microsoft/markitdown"><b>📤 Upstream</b></a>
+</p>
+
+[English](./README.md) ·  [中文 (placeholder)](./README.md)
 
 </div>
 
-### Running Tests and Checks
+---
 
-- Navigate to the MarkItDown package:
+<div align="center">
 
-  ```sh
-  cd packages/markitdown
-  ```
+```text
+┌─ markitdown ──────────────────────────────────────────────────┐
+│                                                               │
+│   ╔════════════════════════════════════════╗                  │
+│   ║                                        ║                  │
+│   ║     Drag & drop a file here, or        ║                  │
+│   ║              [ Browse ]                ║                  │
+│   ║                                        ║                  │
+│   ║   PDF · DOCX · XLSX · PPTX · HTML      ║                  │
+│   ║         images · audio · txt           ║                  │
+│   ║                                        ║                  │
+│   ╚════════════════════════════════════════╝                  │
+│                                                               │
+│   ☑ Strip boilerplate (page #s, headers, legal)               │
+│                                                               │
+│   ─── Result ─────────────────────  [Copy]  [Save as .md]     │
+│   # Q4 Financial Report                                       │
+│                                                               │
+│   | Region | Revenue | YoY |                                  │
+│   | ---    | ---     | --- |                                  │
+│   | EMEA   | $12.4M  | +8% |                                  │
+│   | APAC   | $9.1M   | +14%|                                  │
+│   ...                                                         │
+└───────────────────────────────────────────────────────────────┘
+```
 
-- Install `hatch` in your environment and run tests:
+</div>
 
-  ```sh
-  pip install hatch  # Other ways of installing hatch: https://hatch.pypa.io/dev/install/
-  hatch shell
-  hatch test
-  ```
+## 📚 Table of Contents
 
-  (Alternative) Use the Devcontainer which has all the dependencies installed:
+- [✨ Features](#-features)
+- [🚀 Quick Start](#-quick-start)
+- [🖥️ Desktop App](#️-desktop-app)
+- [📦 Standalone `.exe`](#-standalone-exe)
+- [🛠️ The Post-Processing Pipeline](#️-the-post-processing-pipeline)
+- [🔨 Build From Source](#-build-from-source)
+- [🧪 Testing](#-testing)
+- [🗺️ Project Layout](#️-project-layout)
+- [🚢 Release Flow](#-release-flow)
+- [🙏 Acknowledgements](#-acknowledgements)
+- [📜 License](#-license)
 
-  ```sh
-  # Reopen the project in Devcontainer and run:
-  hatch test
-  ```
+---
 
-- Run pre-commit checks before submitting a PR: `pre-commit run --all-files`
+## ✨ Features
 
-### Security Considerations
+- 🧼 **Auto-clean Markdown.** Every conversion is post-processed offline: unclosed `**bold**` / `_italic_` runs are closed, headings get their missing space, broken links are repaired, trailing whitespace is trimmed, and blank-line runs are collapsed.
+- 📊 **Bullet-proof tables.** Ragged rows are padded, a separator row is guaranteed, duplicate headers are dropped, in-cell whitespace is trimmed, and merged cells are tagged with `[merged]` instead of vanishing.
+- 🪒 **Opt-in boilerplate stripping.** A single `strip_boilerplate=True` flag (or the `--strip-boilerplate` CLI switch / `MARKITDOWN_STRIP_BOILERPLATE=1` env var) removes page numbers, headers/footers that repeat 3+ times, legal noise ("All rights reserved", "Confidential"), and punctuation-only lines.
+- 🔌 **Drop-in compatible.** Import name stays `markitdown`. All upstream `convert_*` calls return identical-shape `DocumentConverterResult` objects — just cleaner. Existing scripts work unchanged.
+- 🦀 **Native desktop app.** A Tauri 2 GUI: drag-and-drop a file, toggle stripping, copy or save as `.md`. Bundles to `.msi`, NSIS `.exe`, `.dmg`, `.deb`, and `.AppImage`.
+- 📦 **Single-file Windows binary.** PyInstaller build produces one `markitdown.exe` (no Python required on the user's machine) with `[all]` extras bundled so PDF, DOCX, XLSX, PPTX, audio and YouTube all work out of the box.
+- 🌐 **Static docs site.** Auto-deploys to GitHub Pages from `docs/` — landing page, install instructions, feature breakdown.
+- ⚡ **Fully offline.** No external APIs, no telemetry, no network calls from the post-processor. What runs on your machine, stays on your machine.
+- 🤖 **Automated release pipeline.** Tag `vX.Y.Z` → GitHub Actions builds the Python wheel, publishes to PyPI via Trusted Publishing, builds `markitdown.exe`, builds desktop installers on Windows/macOS/Linux, and attaches everything to a draft GitHub Release. Zero manual steps.
 
-MarkItDown performs I/O with the privileges of the current process. Like `open()` or `requests.get()`, it will access resources that the process itself can access. 
+## 🚀 Quick Start
 
-**Sanitize your inputs:** Do not pass untrusted input directly to MarkItDown. If any part of the input may be controlled by an untrusted user or system, such as in hosted or server-side applications, it must be validated and restricted before calling MarkItDown. Depending on your environment, this may include restricting file paths, limiting URI schemes and network destinations, and blocking access to private, loopback, link-local, or metadata-service addresses. 
+### 🐍 As a Python library
 
-**Call only the conversion method you need:** Prefer the narrowest conversion API that fits your use case. MarkItDown's `convert()` method is intentionally permissive and can handle local files, remote URIs, and byte streams. If your application only needs to read local files, call `convert_local()` instead. If you need more control over URI fetching, call `requests.get()` yourself and pass the response object to `convert_response()`. For maximum control, open a stream to the input you want converted and call `convert_stream()`.
+```bash
+pip install markitdown-postproc
+```
 
-### Contributing 3rd-party Plugins
+```python
+from markitdown import MarkItDown
 
-You can also contribute by creating and sharing 3rd party plugins. See `packages/markitdown-sample-plugin` for more details.
+# default behavior — post-processing always on, boilerplate stripping off
+md = MarkItDown()
+result = md.convert("report.pdf")
+print(result.markdown)
 
-## Trademarks
+# turn on boilerplate stripping
+md = MarkItDown(strip_boilerplate=True)
+print(md.convert("messy_scan.pdf").markdown)
+```
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
-trademarks or logos is subject to and must follow
-[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
-Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
+### 💻 As a CLI
+
+```bash
+# convert a file
+markitdown example.pdf -o example.md
+
+# or pipe via stdin
+cat example.pdf | markitdown > example.md
+
+# enable boilerplate stripping
+markitdown report.pdf --strip-boilerplate -o report.md
+
+# env-var equivalent (handy for scripts and the desktop app)
+MARKITDOWN_STRIP_BOILERPLATE=1 markitdown report.pdf
+```
+
+### 🪟 As a one-file Windows `.exe`
+
+Grab `markitdown.exe` from the latest [Release](https://github.com/hasnain7abbas/markitdown/releases/latest) — no Python install needed.
+
+```bat
+markitdown.exe report.pdf > report.md
+```
+
+## 🖥️ Desktop App
+
+A native cross-platform GUI lives in [`app/`](app/) — built with [Tauri 2](https://tauri.app), vanilla JS + Vite frontend, Rust backend.
+
+```text
+Drag & drop  →  pick a file  →  ☑ strip boilerplate  →  Copy / Save .md
+```
+
+Installers are built on every push to `main` and attached to GitHub Releases on tag push:
+
+| Platform | Installer |
+| --- | --- |
+| 🪟 Windows | `.msi` (WiX) · `.exe` (NSIS) |
+| 🍎 macOS  | `.dmg` · `.app` (universal: Intel + Apple Silicon) |
+| 🐧 Linux  | `.deb` · `.AppImage` |
+
+Run locally:
+
+```bash
+cd app
+npm install
+npm run tauri dev      # development
+npm run tauri build    # produces installers under src-tauri/target/release/bundle/
+```
+
+**Note:** the desktop app shells out to the `markitdown` CLI, so install the Python package (or drop `markitdown.exe` on PATH) before running.
+
+## 📦 Standalone `.exe`
+
+Built by [`.github/workflows/build-exe.yml`](.github/workflows/build-exe.yml) on every push to `main`. The PyInstaller spec at [`packaging/markitdown.spec`](packaging/markitdown.spec) bundles:
+
+- 🐍 The full Python runtime
+- 🔧 `markitdown[all]` extras (PDF, DOCX, XLSX, PPTX, audio, YouTube)
+- 🧠 The `magika` ONNX model + JSON config
+- 🚫 Excludes heavy ML and Azure SDKs to keep the binary slim
+
+Build locally on Windows:
+
+```powershell
+pip install -e "packages/markitdown[all]"
+pip install pyinstaller
+cd packaging
+pyinstaller --clean --noconfirm markitdown.spec
+./dist/markitdown.exe --help
+```
+
+## 🛠️ The Post-Processing Pipeline
+
+Lives in [`packages/markitdown/src/markitdown/postprocessor.py`](packages/markitdown/src/markitdown/postprocessor.py) and runs at the end of every `MarkItDown._convert()` call — automatically.
+
+```text
+raw converter output
+   │
+   ├─▶ 📊 fix_markdown_tables()    pad ragged rows · guarantee separator
+   │                               · drop dup headers · mark merged cells
+   │
+   ├─▶ 🧼 fix_broken_markdown()    close **bold** / _italic_ · `##X → ## X`
+   │                               · close [text](url · collapse blank runs
+   │                               · strip trailing whitespace
+   │
+   ├─▶ 🪒 strip_boilerplate()      (only if strip_boilerplate=True)
+   │                               page #s · 3x-repeated headers/footers
+   │                               · legal boilerplate · punct-only lines
+   │
+   ▼
+final Markdown — clean, structurally sound, table-safe
+```
+
+| Function | When it runs | What it fixes |
+| --- | --- | --- |
+| `fix_markdown_tables` | always | ragged rows, missing separator, duplicate header, merged cells (`[merged]`), in-cell whitespace |
+| `fix_broken_markdown` | always | unclosed `**bold**` / `_italic_`, `##Heading`, broken links, trailing whitespace, blank-line runs |
+| `strip_boilerplate` | opt-in | page numbers, repeated headers/footers, legal boilerplate, punctuation-only lines (table separators preserved) |
+
+## 🔨 Build From Source
+
+```bash
+git clone https://github.com/hasnain7abbas/markitdown.git
+cd markitdown
+pip install -e "packages/markitdown[all]"
+```
+
+Optional extras you can install individually if you don't want the whole world:
+
+```bash
+pip install -e "packages/markitdown[pdf]"
+pip install -e "packages/markitdown[docx]"
+pip install -e "packages/markitdown[xlsx]"
+pip install -e "packages/markitdown[pptx]"
+pip install -e "packages/markitdown[audio-transcription]"
+```
+
+## 🧪 Testing
+
+```bash
+pytest packages/markitdown/tests/test_postprocessor.py -v
+```
+
+30 cases cover every fix rule (positive + negative), the table repair logic, boilerplate detection, and pipeline integration. The full upstream test suite also runs unchanged on supported Python versions (3.10 – 3.13).
+
+## 🗺️ Project Layout
+
+```text
+markitdown/
+├── 📁 packages/markitdown/      # Python package (library + CLI)
+│   ├── src/markitdown/
+│   │   ├── postprocessor.py     # 🆕 the three improvements
+│   │   ├── _markitdown.py       # _convert() wires the pipeline in
+│   │   ├── __main__.py          # CLI — adds --strip-boilerplate flag
+│   │   └── converters/          # upstream converters (PDF, DOCX, ...)
+│   └── tests/test_postprocessor.py  # 30 tests, all green
+│
+├── 📁 packaging/                # PyInstaller spec → markitdown.exe
+│
+├── 📁 app/                      # Tauri 2 desktop GUI
+│   ├── src/                     # Vanilla JS + Vite frontend
+│   ├── src-tauri/               # Rust backend + Cargo.toml
+│   └── scripts/gen_icons.py     # icon generator
+│
+├── 📁 docs/                     # GitHub Pages static site
+│
+└── 📁 .github/workflows/
+    ├── publish-pypi.yml         # 📦 sdist + wheel → PyPI on v* tag
+    ├── build-exe.yml            # 🪟 markitdown.exe on every push to main
+    ├── build-desktop.yml        # 🦀 .msi/.exe/.dmg/.deb/.AppImage
+    └── pages.yml                # 🌐 deploy docs/ to GitHub Pages
+```
+
+## 🚢 Release Flow
+
+```text
+git tag v0.1.6-postproc.1
+git push origin --tags
+        │
+        ▼
+┌──────────────────────────────────────────────────────────┐
+│  GitHub Actions kicks off four pipelines in parallel:     │
+│                                                          │
+│   📦 publish-pypi.yml   →  PyPI (Trusted Publishing)     │
+│   🪟 build-exe.yml      →  markitdown.exe attached       │
+│   🦀 build-desktop.yml  →  .msi/.exe/.dmg/.deb/AppImage  │
+│   🌐 pages.yml          →  docs site refreshed           │
+│                                                          │
+│  → draft GitHub Release with every artifact attached     │
+└──────────────────────────────────────────────────────────┘
+```
+
+One-time setup:
+
+- 📦 Register a PyPI Trusted Publisher at <https://pypi.org/manage/account/publishing/> pointing at this repo + `publish-pypi.yml` + environment `pypi`.
+- 🌐 Pages is already enabled (workflow source) — site at <https://hasnain7abbas.github.io/markitdown/>.
+
+## 🙏 Acknowledgements
+
+- 🪟 [microsoft/markitdown](https://github.com/microsoft/markitdown) — the original project, by Adam Fourney and the AutoGen team. This fork stands on their shoulders; see [`README-upstream.md`](README-upstream.md) for their original docs.
+- 🦀 [Tauri](https://tauri.app/) — for the tiny, fast, native desktop runtime.
+- 🐍 [PyInstaller](https://pyinstaller.org/) — for the standalone Windows binary.
+- 🎨 The icon set in [`app/src-tauri/icons/`](app/src-tauri/icons/) is generated by [`app/scripts/gen_icons.py`](app/scripts/gen_icons.py).
+
+## 📜 License
+
+[MIT](./LICENSE). Original copyright © Microsoft Corporation retained. Fork improvements © 2026 hasnain7abbas, also under MIT.
+
+<div align="center">
+
+— if this saved you an hour wrestling with broken Markdown, drop a ⭐ on the repo —
+
+</div>
