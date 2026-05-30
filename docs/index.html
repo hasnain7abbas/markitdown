@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>markitdown-postproc — clean Markdown from any document</title>
+  <meta name="description" content="Fork of microsoft/markitdown with an offline post-processing pipeline: syntax repair, table normalization, and opt-in boilerplate stripping." />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <p class="eyebrow">A fork of <a href="https://github.com/microsoft/markitdown">microsoft/markitdown</a></p>
+      <h1>markitdown<span class="accent">-postproc</span></h1>
+      <p class="tagline">
+        Convert PDF, DOCX, XLSX, PPTX, HTML, audio, and more to clean Markdown —
+        with an automatic offline post-processing pass that repairs broken
+        syntax, normalizes tables, and strips boilerplate.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/hasnain7abbas/markitdown">View on GitHub</a>
+        <a class="btn" href="https://github.com/hasnain7abbas/markitdown/releases">Download .exe</a>
+        <a class="btn" href="#install">pip install</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="install">
+      <h2>Install</h2>
+      <pre><code>pip install markitdown-postproc</code></pre>
+      <p class="muted">The distribution name is <code>markitdown-postproc</code> (the upstream <code>markitdown</code> name is owned by Microsoft). The import name is unchanged.</p>
+    </section>
+
+    <section>
+      <h2>Use</h2>
+      <pre><code>from markitdown import MarkItDown
+
+md = MarkItDown(strip_boilerplate=True)
+result = md.convert("report.pdf")
+print(result.text_content)</code></pre>
+    </section>
+
+    <section>
+      <h2>What the post-processor does</h2>
+      <div class="grid">
+        <article>
+          <h3>fix_broken_markdown</h3>
+          <p>Closes unclosed <code>**bold**</code> / <code>_italic_</code> spans (ignoring <code>snake_case</code>), adds missing spaces after heading hashes, closes broken links, collapses 3+ blank lines, and strips trailing whitespace.</p>
+        </article>
+        <article>
+          <h3>fix_markdown_tables</h3>
+          <p>Pads ragged rows, guarantees a separator row, drops duplicate headers, trims cell whitespace, and marks merged interior cells with <code>[merged]</code>.</p>
+        </article>
+        <article>
+          <h3>strip_boilerplate <span class="tag">opt-in</span></h3>
+          <p>Removes page numbers (<code>1</code>, <code>Page 2</code>, <code>- 3 -</code>), headers/footers repeated 3+ times, legal boilerplate ("All rights reserved", "Confidential"), and punctuation-only lines. Table separators are preserved.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Pipeline order</h2>
+      <pre><code>raw output
+   -&gt; fix_markdown_tables()
+   -&gt; fix_broken_markdown()
+   -&gt; strip_boilerplate()   # only if strip_boilerplate=True
+   -&gt; final markdown</code></pre>
+      <p class="muted">Fully offline. No external API calls.</p>
+    </section>
+
+    <section>
+      <h2>Get it</h2>
+      <ul class="links">
+        <li><strong>Source:</strong> <a href="https://github.com/hasnain7abbas/markitdown">github.com/hasnain7abbas/markitdown</a></li>
+        <li><strong>Issues:</strong> <a href="https://github.com/hasnain7abbas/markitdown/issues">github.com/hasnain7abbas/markitdown/issues</a></li>
+        <li><strong>Upstream:</strong> <a href="https://github.com/microsoft/markitdown">github.com/microsoft/markitdown</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>MIT licensed. Fork of <a href="https://github.com/microsoft/markitdown">microsoft/markitdown</a>. Original copyright retained.</p>
+    </div>
+  </footer>
+</body>
+</html>
