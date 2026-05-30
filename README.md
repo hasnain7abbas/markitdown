@@ -336,6 +336,26 @@ docker build -t markitdown:latest .
 docker run --rm -i markitdown:latest < ~/your-file.pdf > output.md
 ```
 
+### Releasing to PyPI (fork)
+
+This fork is published as **`markitdown-postproc`** on PyPI (the upstream `markitdown` name is owned by Microsoft). The import name is unchanged:
+
+```sh
+pip install markitdown-postproc
+```
+```python
+from markitdown import MarkItDown
+```
+
+Publishing is automated via `.github/workflows/publish-pypi.yml`. Push a version tag and the workflow builds an sdist + wheel and uploads via PyPI Trusted Publishing:
+
+```sh
+git tag v0.1.6-postproc.1
+git push origin v0.1.6-postproc.1
+```
+
+One-time setup on PyPI: register a trusted publisher at https://pypi.org/manage/account/publishing/ pointing at `hasnain7abbas/markitdown`, workflow `publish-pypi.yml`, environment `pypi`. No long-lived API token is stored in the repo.
+
 ## Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a
