@@ -114,3 +114,10 @@ exclude_lines = [
 
 [tool.hatch.build.targets.sdist]
 only-include = ["src/markitdown"]
+
+# Distribution is named `markitdown-postproc`, but the package directory is
+# still `src/markitdown` (the import name is unchanged). Hatchling's
+# auto-detection looks for a dir matching the project name, so we declare
+# the wheel package explicitly.
+[tool.hatch.build.targets.wheel]
+packages = ["src/markitdown"]

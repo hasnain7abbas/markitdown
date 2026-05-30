@@ -17,11 +17,16 @@ jobs:
       matrix:
         include:
           - platform: windows-latest
-            target: ""
+            rust-targets: ""
+            bundle-target: ""
           - platform: macos-latest
-            target: "universal-apple-darwin"
+            # `universal-apple-darwin` is not a real rustup target — it is a
+            # tauri-cli wrapper that lipo-merges the two real targets below.
+            rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+            bundle-target: "universal-apple-darwin"
           - platform: ubuntu-22.04
-            target: ""
+            rust-targets: ""
+            bundle-target: ""
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +54,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rust-targets }}
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -74,4 +79,4 @@ jobs:
           releaseName: "markitdown ${{ github.ref_name }}"
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
+          args: ${{ matrix.bundle-target && format('--target {0}', matrix.bundle-target) || '' }}
