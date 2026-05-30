@@ -356,6 +356,24 @@ git push origin v0.1.6-postproc.1
 
 One-time setup on PyPI: register a trusted publisher at https://pypi.org/manage/account/publishing/ pointing at `hasnain7abbas/markitdown`, workflow `publish-pypi.yml`, environment `pypi`. No long-lived API token is stored in the repo.
 
+### Standalone Windows executable
+
+For users who don't want to install Python, every push to `main` builds a single-file `markitdown.exe` via PyInstaller (`packaging/markitdown.spec`). The workflow lives at `.github/workflows/build-exe.yml` and:
+
+- runs on `windows-latest` with Python 3.12,
+- installs `markitdown[all]` so the bundled binary handles PDF / DOCX / XLSX / PPTX / audio / YouTube,
+- uploads `markitdown.exe` as a build artifact, and
+- on a `v*` tag, attaches the binary to the GitHub Release.
+
+To build locally:
+
+```sh
+pip install -e "packages/markitdown[all]"
+pip install pyinstaller
+cd packaging && pyinstaller --clean --noconfirm markitdown.spec
+./dist/markitdown.exe --help
+```
+
 ## Contributing
 
 This project welcomes contributions and suggestions. Most contributions require you to agree to a
