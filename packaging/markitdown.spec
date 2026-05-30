@@ -11,11 +11,19 @@ Usage:
 
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
-# magika ships an ONNX model + JSON config that must be bundled.
+# Packages we collect fully because PyInstaller's static analysis misses
+# their data files, dynamic submodules, or compiled C-extensions.
 magika_datas, magika_binaries, magika_hidden = collect_all("magika")
+numpy_datas, numpy_binaries, numpy_hidden = collect_all("numpy")
+onnx_datas, onnx_binaries, onnx_hidden = collect_all("onnxruntime")
+
+extra_datas = magika_datas + numpy_datas + onnx_datas
+extra_binaries = magika_binaries + numpy_binaries + onnx_binaries
 
 hiddenimports = list(set(
     magika_hidden
+    + numpy_hidden
+    + onnx_hidden
     + collect_submodules("markitdown")
     + collect_submodules("markitdown.converters")
     + collect_submodules("markitdown.converter_utils")
@@ -45,8 +53,8 @@ hiddenimports = list(set(
 a = Analysis(
     ["runner.py"],
     pathex=["..\\packages\\markitdown\\src"],
-    binaries=magika_binaries,
-    datas=magika_datas,
+    binaries=extra_binaries,
+    datas=extra_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],
