@@ -37,7 +37,7 @@ jobs:
           ./packaging/dist/markitdown.exe --help
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: markitdown-windows-x64
           path: packaging/dist/markitdown.exe
